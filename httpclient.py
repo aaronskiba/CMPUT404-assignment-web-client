@@ -79,11 +79,14 @@ class HTTPClient(object):
         o = urlparse(url)
         host = o.hostname
         path = o.path
+        query = o.query
         port = o.port
         if not port:
             port = 80
         if not path:
             path = "/" #TODO: Handle 301 for this?
+        if query:
+            path += f"?{query}"
         return host, port, path
 
     def GET(self, url, args=None):
