@@ -18,11 +18,12 @@
 # Write your own HTTP GET and POST
 # The point is to understand what you have to send and get experience with it
 
-import sys
-import socket
 import re
+import socket
+import sys
 # you may use urllib to encode data appropriately
-from urllib.parse import urlparse, urlencode
+from urllib.parse import urlencode, urlparse
+
 
 def help():
     print("httpclient.py [GET/POST] [URL]\n")
@@ -44,7 +45,6 @@ class HTTPClient(object):
         return int(data.split()[1])
 
     def get_headers(self,data):
-        # b in front of a string vs s
         return None
 
     def get_body(self, data):
@@ -102,6 +102,8 @@ class HTTPClient(object):
         data+= "Connection: Close\r\n\r\n"
         self.sendall(data)
         result = self.recvall(self.socket)
+        self.close()
+        print("\r\n",result, "\n\n")
         code = self.get_code(result)
         body = self.get_body(result)
         return HTTPResponse(code, body)
@@ -124,6 +126,8 @@ class HTTPClient(object):
         data+=body
         self.sendall(data)
         result = self.recvall(self.socket)
+        self.close()
+        print("\r\n",result, "\n\n")
         code = self.get_code(result)
         body = self.get_body(result)
 
