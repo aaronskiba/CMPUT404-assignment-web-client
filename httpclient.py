@@ -22,7 +22,7 @@ import sys
 import socket
 import re
 # you may use urllib to encode data appropriately
-import urllib.parse
+from urllib.parse import urlparse, urlencode
 
 def help():
     print("httpclient.py [GET/POST] [URL]\n")
@@ -41,22 +41,25 @@ class HTTPClient(object):
         return None
 
     def get_code(self, data):
-        return None
+        return int(data.split()[1])
 
     def get_headers(self,data):
+        # b in front of a string vs s
         return None
 
     def get_body(self, data):
-        return None
+        return data.split("\r\n")[-1]
     
     def sendall(self, data):
+        """Sends data to the socket"""
         self.socket.sendall(data.encode('utf-8'))
         
     def close(self):
+        """Closes the socket"""
         self.socket.close()
 
-    # read everything from the socket
     def recvall(self, sock):
+        """Receive all data from the socket"""
         buffer = bytearray()
         done = False
         while not done:
@@ -65,27 +68,76 @@ class HTTPClient(object):
                 buffer.extend(part)
             else:
                 done = not part
+        # return the decoded bytearray
         return buffer.decode('utf-8')
 
+    def parse_url(self, url):
+        """parses url to extract hostname, port, and path
+        @params: url:str
+        @return: tuple - (host:str, port:int, path:str)
+        """
+        o = urlparse(url)
+        host = o.hostname
+        path = o.path
+        query = o.query
+        port = o.port
+        if not port:
+            port = 80
+        if not path:
+            path = "/" #TODO: Handle 301 for this?
+        if query:
+            path += f"?{query}"
+        return host, port, path
+
     def GET(self, url, args=None):
-        code = 500
-        body = ""
+        host, port, path = self.parse_url(url)
+        try:
+            self.connect(host, port)
+        except:
+            print(f"Error. Cannot connect to {host}:{port}.")
+            return
+        data = f"GET {path} HTTP/1.1\r\n"
+        data+= f"Host: {host}\r\n"
+        data+= "Accept: */*\r\n"
+        data+= "Connection: Close\r\n\r\n"
+        self.sendall(data)
+        result = self.recvall(self.socket)
+        code = self.get_code(result)
+        body = self.get_body(result)
         return HTTPResponse(code, body)
 
+
     def POST(self, url, args=None):
-        code = 500
+        host, port, path = self.parse_url(url)
+        try:
+            self.connect(host, port)
+        except:
+            print(f"Error. Cannot connect to {host}:{port}.")
+            return
+        data = f"POST {path} HTTP/1.1\r\n"
+        data+= f"Host: {host}\r\n"
+        data+= f"Content-Type: application/x-www-form-urlencoded\r\n"
         body = ""
+        if args:
+            body += urlencode(args)
+        data+=f"Content-Length: {len(body)}\r\n\r\n"
+        data+=body
+        self.sendall(data)
+        result = self.recvall(self.socket)
+        code = self.get_code(result)
+        body = self.get_body(result)
+
         return HTTPResponse(code, body)
 
     def command(self, url, command="GET", args=None):
         if (command == "POST"):
-            return self.POST( url, args )
+            return self.POST( url, args ) 
         else:
             return self.GET( url, args )
     
 if __name__ == "__main__":
     client = HTTPClient()
-    command = "GET"
+    # command = "GET"
     if (len(sys.argv) <= 1):
         help()
         sys.exit(1)
